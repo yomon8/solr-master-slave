@@ -1,0 +1,92 @@
+---
+- hosts: solr_servers
+  vars:
+    solr:
+      version: 6.0.1
+      port: 8983
+      srcdir: /usr/local/src
+      downloaddir: /tmp
+  become: true
+  user: vagrant
+  tasks:
+    - name: install yum packages
+      yum:
+        name: "{{item}}"
+        state: installed
+      with_items:
+        - wget
+        - lsof
+        - java-1.8.0-openjdk
+
+    - name: Check solr tar ball downloaded or not
+      stat:
+        path: "{{solr.downloaddir}}/solr-{{ solr.version }}.tgz"
+      register: solr_downloaded
+      
+    - name: Check solr installed or not
+      stat:
+        path: "/opt/solr-{{ solr.version }}/LICENSE.txt"
+      register: solr_installed
+
+    - name: Download solr
+      get_url: 
+         url: http://archive.apache.org/dist/lucene/solr/{{solr.version}}/solr-{{solr.version}}.tgz
+         dest: "{{solr.downloaddir}}/solr-{{solr.version}}.tgz"
+      when: not solr_installed.stat.exists and not solr_downloaded.stat.exists
+
+    - name: Extract solr tar ball
+      shell: tar xf "{{solr.downloaddir}}/solr-{{solr.version}}.tgz"
+      args:
+        chdir: "{{ solr.srcdir }}"
+      when: not solr_installed.stat.exists and not solr_downloaded.stat.exists
+
+    - name: Install solr
+      shell: test -x /etc/init.d/solr_node_{{ solr.port }} || {{ solr.srcdir }}/solr-{{ solr.version }}/bin/install_solr_service.sh {{ solr.downloaddir }}/solr-{{solr.version}}.tgz -p {{ solr.port }} -s solr_node_{{ solr.port }}
+      when: not solr_installed.stat.exists
+
+    - name: Set solr host
+      shell: sed -i -e "s/^.*\(SOLR_HOST=\).*/\1\"$(ip a show dev eth1 |egrep "inet\s"|awk 'match($2, /([0-9]{1,3})\.([0-9]{1,3})\.([0-9]{1,3})\.([0-9]{1,3})/) {print substr($2,RSTART,RLENGTH)}')\"/" /etc/default/solr_node_{{ solr.port }}.in.sh
+
+    - name: restart solr
+      shell: service solr_node_{{ solr.port }} restart 
+
+- hosts: solr_dev_env
+  vars:
+    solr:
+      version: 6.0.1
+      gitdir: /usr/local/src/lucene-solr
+      corename: devcore
+  become: true
+  user: vagrant
+  tasks:
+    - name: Install yum packages
+      yum:
+        name: "{{item}}"
+        state: installed
+      with_items:
+        - git
+        - vim
+        - ant
+        - ivy
+        - ctags
+
+    - name: Check git cloned or not
+      stat:
+        path: "{{solr.gitdir}}/lucene-solr"
+      register: solr_cloned
+
+    - name: Git Clone
+      git:
+        repo: "https://github.com/apache/lucene-solr.git"
+        dest: "{{solr.gitdir}}"
+        version: "releases/lucene-solr/{{solr.version}}"
+        accept_hostkey: yes
+      when: not solr_cloned.stat.exists
+      
+    - name: Ant compile
+      shell: >-
+        ant compile
+      args:
+        chdir: "{{solr.gitdir}}"
+
+

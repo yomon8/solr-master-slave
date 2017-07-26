@@ -1,0 +1,9 @@
+[solr_servers]
+solr-master
+solr-slave
+
+[solr_dev_env]
+solr-master
+solr-slave
+
+
