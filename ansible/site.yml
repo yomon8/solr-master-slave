@@ -53,7 +53,7 @@
 - hosts: solr_dev_env
   vars:
     solr:
-      version: 6.0.1
+      version: {{ solr.version }}
       gitdir: /usr/local/src/lucene-solr
       corename: devcore
   become: true

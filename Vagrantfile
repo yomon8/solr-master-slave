@@ -2,7 +2,7 @@
 # vi: set ft=ruby :
 
 Vagrant.configure(2) do |config|
-  solr_servers = ["solr-master","solr-slave"]
+  solr_servers = ["solr-master"]
   config.vm.box = "centos/7"
 
   (0..solr_servers.length - 1).each do |i|
